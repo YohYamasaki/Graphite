@@ -25,6 +25,7 @@ use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::{Arc, LazyLock};
+use vector_types::gradient::GradientSpreadMethod;
 use vello::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1076,6 +1077,11 @@ impl Render for Table<Vector> {
 								}
 								.into()
 							}
+						},
+						extend: match gradient.spread_method {
+							GradientSpreadMethod::Pad => peniko::Extend::Pad,
+							GradientSpreadMethod::Reflect => peniko::Extend::Reflect,
+							GradientSpreadMethod::Repeat => peniko::Extend::Repeat,
 						},
 						stops,
 						interpolation_alpha_space: peniko::InterpolationAlphaSpace::Premultiplied,
