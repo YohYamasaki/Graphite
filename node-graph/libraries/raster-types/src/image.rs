@@ -9,6 +9,7 @@ use core::hash::{Hash, Hasher};
 use core_types::color::*;
 use dyn_any::{DynAny, StaticType};
 use glam::{DAffine2, DVec2};
+use std::collections::HashMap;
 use std::vec::Vec;
 
 mod base64_serde {
@@ -321,6 +322,7 @@ pub fn migrate_image_frame<'de, D: serde::Deserializer<'de>>(deserializer: D) ->
 				transform,
 				alpha_blending,
 				source_node_id: None,
+				additional: Default::default(),
 			})
 			.collect()
 	}
@@ -334,6 +336,7 @@ pub fn migrate_image_frame<'de, D: serde::Deserializer<'de>>(deserializer: D) ->
 				transform: DAffine2::IDENTITY,
 				alpha_blending: AlphaBlending::default(),
 				source_node_id: None,
+				additional: Default::default(),
 			})
 			.collect()
 	}
@@ -452,6 +455,7 @@ pub fn migrate_image_frame_row<'de, D: serde::Deserializer<'de>>(deserializer: D
 			transform: image_frame_with_transform_and_blending.transform,
 			alpha_blending: image_frame_with_transform_and_blending.alpha_blending,
 			source_node_id: None,
+			additional: Default::default(),
 		},
 		FormatVersions::ImageFrameTable(image_frame) => TableRow {
 			element: Raster::new_cpu(image_frame.iter().next().unwrap().element.image.clone()),

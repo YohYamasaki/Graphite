@@ -855,6 +855,7 @@ impl Render for Table<Vector> {
 					alpha_blending: *row.alpha_blending,
 					transform: *row.transform,
 					source_node_id: None,
+					additional: Default::default(),
 				});
 
 				(id, mask_type, vector_row)
@@ -1165,6 +1166,7 @@ impl Render for Table<Vector> {
 							alpha_blending: *row.alpha_blending,
 							transform: *row.transform,
 							source_node_id: None,
+							additional: Default::default(),
 						});
 
 						let bounds = row.element.bounding_box_with_transform(multiplied_transform).unwrap_or(layer_bounds);

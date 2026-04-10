@@ -9,6 +9,7 @@ use core_types::transform::Transform;
 use core_types::uuid::NodeId;
 use dyn_any::DynAny;
 use glam::{DAffine2, DVec2, IVec2};
+use std::collections::HashMap;
 use std::hash::Hash;
 
 /// Some [`ArtboardData`] with some optional clipping bounds that can be exported.
@@ -106,6 +107,7 @@ pub fn migrate_artboard<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Re
 					transform: DAffine2::IDENTITY,
 					alpha_blending: AlphaBlending::default(),
 					source_node_id,
+					additional: Default::default(),
 				});
 			}
 			table
@@ -119,6 +121,7 @@ pub fn migrate_artboard<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Re
 				transform,
 				alpha_blending,
 				source_node_id: None,
+				additional: Default::default(),
 			})
 			.collect(),
 		ArtboardFormat::ArtboardTable(artboard_table) => artboard_table,

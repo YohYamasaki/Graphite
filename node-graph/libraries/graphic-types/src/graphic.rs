@@ -8,6 +8,7 @@ use core_types::uuid::NodeId;
 use dyn_any::DynAny;
 use glam::DAffine2;
 use raster_types::{CPU, GPU, Raster};
+use std::collections::HashMap;
 use std::hash::Hash;
 use vector_types::GradientStops;
 // use vector_types::Vector;
@@ -139,6 +140,11 @@ fn flatten_graphic_table<T>(content: Table<Graphic>, extract_variant: fn(Graphic
 								transform: current_graphic_row.transform * row.transform,
 								alpha_blending: compose_alpha_blending(current_graphic_row.alpha_blending, row.alpha_blending),
 								source_node_id,
+								additional: {
+									let mut additional = row.additional;
+									additional.extend(current_graphic_row.additional.clone());
+									additional
+								},
 							});
 						}
 					}
@@ -447,6 +453,7 @@ pub fn migrate_graphic<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Res
 					transform: old.transform,
 					alpha_blending: old.alpha_blending,
 					source_node_id,
+					additional: Default::default(),
 				});
 			}
 			graphic_table
@@ -460,6 +467,7 @@ pub fn migrate_graphic<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Res
 					transform: element.transform,
 					alpha_blending: element.alpha_blending,
 					source_node_id,
+					additional: Default::default(),
 				})
 			})
 			.collect(),
@@ -472,6 +480,7 @@ pub fn migrate_graphic<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Res
 					transform: element.transform,
 					alpha_blending: element.alpha_blending,
 					source_node_id,
+					additional: Default::default(),
 				})
 			})
 			.collect(),
@@ -484,6 +493,7 @@ pub fn migrate_graphic<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Res
 					transform: Default::default(),
 					alpha_blending: Default::default(),
 					source_node_id,
+					additional: Default::default(),
 				})
 			})
 			.collect(),
@@ -498,6 +508,7 @@ pub fn migrate_graphic<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Res
 							transform: *row.transform,
 							alpha_blending: *row.alpha_blending,
 							source_node_id: *source_node_id,
+							additional: Default::default(),
 						});
 					}
 				}

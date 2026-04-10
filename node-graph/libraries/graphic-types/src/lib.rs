@@ -11,6 +11,8 @@ pub use artboard::Artboard;
 pub use graphic::{Graphic, IntoGraphicTable, TryFromGraphic, Vector};
 
 pub mod migrations {
+	use std::collections::HashMap;
+
 	use core_types::{
 		AlphaBlending,
 		table::{Table, TableRow},
@@ -92,6 +94,7 @@ pub mod migrations {
 					transform,
 					alpha_blending,
 					source_node_id: None,
+					additional: Default::default(),
 				})
 				.collect(),
 			VectorFormat::VectorTable(vector_table) => vector_table,
