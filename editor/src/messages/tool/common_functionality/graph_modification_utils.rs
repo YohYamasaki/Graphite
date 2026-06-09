@@ -275,7 +275,7 @@ pub fn get_viewport_center(layer: LayerNodeIdentifier, network_interface: &NodeN
 /// Returns Fill's fill input if the layer has a "Fill" node, otherwise returns the layer's content input.
 pub fn gradient_chain_target_input(layer: LayerNodeIdentifier, network_interface: &NodeNetworkInterface) -> InputConnector {
 	if let Some(fill_node_id) = NodeGraphLayer::new(layer, network_interface).upstream_node_id_from_name(&DefinitionIdentifier::ProtoNode(graphene_std::vector::fill::IDENTIFIER)) {
-		InputConnector::node(fill_node_id, graphene_std::vector::fill::FillInput::<Fill>::INDEX)
+		InputConnector::node(fill_node_id, graphene_std::vector::fill::FillInput::<List<Color>>::INDEX)
 	} else {
 		InputConnector::node(layer.to_node(), 1)
 	}
@@ -294,7 +294,7 @@ pub fn get_upstream_gradient_value_node_id(layer: LayerNodeIdentifier, network_i
 pub fn get_fill_input_node_id(layer: LayerNodeIdentifier, network_interface: &NodeNetworkInterface) -> Option<NodeId> {
 	let fill_node_id = NodeGraphLayer::new(layer, network_interface).upstream_node_id_from_name(&DefinitionIdentifier::ProtoNode(graphene_std::vector::fill::IDENTIFIER))?;
 	let fill_node = network_interface.document_network().nodes.get(&fill_node_id)?;
-	let NodeInput::Node { node_id, .. } = fill_node.inputs.get(graphene_std::vector::fill::FillInput::<Fill>::INDEX)? else {
+	let NodeInput::Node { node_id, .. } = fill_node.inputs.get(graphene_std::vector::fill::FillInput::<List<Color>>::INDEX)? else {
 		return None;
 	};
 	Some(*node_id)
@@ -623,7 +623,7 @@ pub fn set_stroke_weight_for_selected_layers(weight: f64, document: &DocumentMes
 
 /// Returns the `Fill` value from a layer's upstream Fill node.
 pub fn get_fill_value(layer: LayerNodeIdentifier, network_interface: &NodeNetworkInterface) -> Option<Fill> {
-	let fill_index = graphene_std::vector::fill::FillInput::<Fill>::INDEX;
+	let fill_index = graphene_std::vector::fill::FillInput::<List<Color>>::INDEX;
 	let tagged = NodeGraphLayer::new(layer, network_interface).find_input(&DefinitionIdentifier::ProtoNode(graphene_std::vector::fill::IDENTIFIER), fill_index)?;
 	if let TaggedValue::Fill(fill) = tagged { Some(fill.clone()) } else { None }
 }
