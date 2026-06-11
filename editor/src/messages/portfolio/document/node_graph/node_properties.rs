@@ -2410,15 +2410,38 @@ pub(crate) fn fill_properties(node_id: NodeId, context: &mut NodePropertiesConte
 		}
 	};
 
-	let (fill, backup_color, backup_gradient) = if let (Some(TaggedValue::Fill(fill)), Some(TaggedValue::Color(backup_color)), Some(TaggedValue::FillGradient(backup_gradient))) = (
-		&document_node.inputs[FillInput::<List<Color>>::INDEX].as_value(),
-		&document_node.inputs[BackupColorInput::INDEX].as_value(),
-		&document_node.inputs[BackupGradientInput::INDEX].as_value(),
-	) {
-		(fill, backup_color, backup_gradient)
-	} else {
-		return vec![LayoutGroup::row(widgets_first_row)];
-	};
+	let connector = InputConnector::node(node_id, FillInput::<List<Color>>::INDEX);
+	let input_type = context.network_interface.input_type(&connector, context.selection_network_path);
+	let input = &document_node.inputs[FillInput::<List<Color>>::INDEX];
+
+	match input_type.compiled_nested_type() {
+		Some(ty) if ty == &concrete!(List<Color>) => {
+			let color: Option<Color> = match input.as_value() {
+				Some(TaggedValue::Color(c)) => c,
+				_ => input
+					.as_node()
+					.and_then(|source_id| context.network_interface.nested_network(context.selection_network_path)?.nodes.get(&source_id))
+					.and_then(|source| source.inputs.get(graphene_std::math_nodes::color_value::ColorInput::INDEX)?.as_value())
+					.and_then(|value| if let TaggedValue::Color(c) = value { c } else { None }),
+			};
+
+			// TODO: Do whatever needed with the solid color
+		}
+		Some(ty) if ty == &concrete!(List<GradientStops>) => {
+			todo!()
+		}
+		_ => {}
+	}
+
+	// let (fill, backup_color, backup_gradient) = if let (Some(TaggedValue::Fill(fill)), Some(TaggedValue::Color(backup_color)), Some(TaggedValue::FillGradient(backup_gradient))) = (
+	// 	&document_node.inputs[FillInput::<List<Color>>::INDEX].as_value(),
+	// 	&document_node.inputs[BackupColorInput::INDEX].as_value(),
+	// 	&document_node.inputs[BackupGradientInput::INDEX].as_value(),
+	// ) {
+	// 	(fill, backup_color, backup_gradient)
+	// } else {
+	// 	return vec![LayoutGroup::row(widgets_first_row)];
+	// };
 	let fill2 = fill.clone();
 	let backup_color_fill: Fill = (*backup_color).into();
 	let backup_gradient_fill: Fill = backup_gradient.clone().into();

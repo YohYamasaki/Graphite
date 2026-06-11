@@ -8,7 +8,7 @@ use crate::messages::portfolio::document::overlays::utility_types::{GizmoEmphasi
 use crate::messages::portfolio::document::utility_types::document_metadata::LayerNodeIdentifier;
 use crate::messages::portfolio::document::utility_types::network_interface::{FlowType, NodeNetworkInterface};
 use crate::messages::tool::common_functionality::auto_panning::AutoPanning;
-use crate::messages::tool::common_functionality::graph_modification_utils::{self, NodeGraphLayer, get_gradient_stops, gradient_chain_target_input};
+use crate::messages::tool::common_functionality::graph_modification_utils::{self, NodeGraphLayer, get_gradient_stops, gradient_chain_target_input, read_gradient_chain_state};
 use crate::messages::tool::common_functionality::snapping::{SnapCandidatePoint, SnapConstraint, SnapData, SnapManager, SnapTypeConfiguration};
 use graph_craft::document::value::TaggedValue;
 use graphene_std::color::SRGBA8;
@@ -360,90 +360,6 @@ fn get_gradient(layer: LayerNodeIdentifier, network_interface: &NodeNetworkInter
 		// Try to find a legacy Fill::Gradient that is selected in a Fill node
 		graph_modification_utils::get_gradient(layer, network_interface)
 	}
-}
-
-#[derive(Clone, Copy, Debug)]
-struct GradientChainState {
-	transform: DAffine2,
-	gradient_type: GradientType,
-	spread_method: GradientSpreadMethod,
-}
-
-/// Resolve the gradient transform, type, and spread method by walking the chain feeding the layer. Transform composes all
-/// 'Transform' nodes. Type and spread method come from the closest-to-layer node of each kind, or the type default.
-fn read_gradient_chain_state(layer: LayerNodeIdentifier, network_interface: &NodeNetworkInterface) -> GradientChainState {
-	let target_input = gradient_chain_target_input(layer, network_interface);
-	let walk_from = network_interface.upstream_output_connector(&target_input, &[]).and_then(|out| out.node_id()).unwrap_or(layer.to_node());
-
-	let transform_reference = DefinitionIdentifier::ProtoNode(graphene_std::transform_nodes::transform::IDENTIFIER);
-	let gradient_type_reference = DefinitionIdentifier::ProtoNode(graphene_std::math_nodes::gradient_type::IDENTIFIER);
-	let spread_method_reference = DefinitionIdentifier::ProtoNode(graphene_std::math_nodes::spread_method::IDENTIFIER);
-
-	let mut transforms_downstream_to_upstream: Vec<DAffine2> = Vec::new();
-	let mut gradient_type: Option<GradientType> = None;
-	let mut spread_method: Option<GradientSpreadMethod> = None;
-
-	for node_id in network_interface
-		.upstream_flow_back_from_nodes(vec![walk_from], &[], FlowType::HorizontalFlow)
-		.skip_while(|node_id| network_interface.is_layer(node_id, &[]))
-		.take_while(|node_id| !network_interface.is_layer(node_id, &[]))
-	{
-		let Some(reference) = network_interface.reference(&node_id, &[]) else { continue };
-		let Some(document_node) = network_interface.document_network().nodes.get(&node_id) else {
-			continue;
-		};
-
-		if reference == transform_reference {
-			transforms_downstream_to_upstream.push(read_transform_node_value(&document_node.inputs));
-		} else if reference == gradient_type_reference
-			&& gradient_type.is_none()
-			&& let Some(TaggedValue::GradientType(value)) = document_node.inputs.get(1).and_then(|input| input.as_value())
-		{
-			gradient_type = Some(*value);
-		} else if reference == spread_method_reference
-			&& spread_method.is_none()
-			&& let Some(TaggedValue::GradientSpreadMethod(value)) = document_node.inputs.get(1).and_then(|input| input.as_value())
-		{
-			spread_method = Some(*value);
-		}
-	}
-
-	// Iteration order [T_n, ..., T_1] is the matrix-product order, so the fold yields T_n * ... * T_1
-	let composed_transform = transforms_downstream_to_upstream.into_iter().fold(DAffine2::IDENTITY, |acc, matrix| acc * matrix);
-
-	GradientChainState {
-		transform: composed_transform,
-		gradient_type: gradient_type.unwrap_or_default(),
-		spread_method: spread_method.unwrap_or_default(),
-	}
-}
-
-/// Reconstruct the `DAffine2` produced by a 'Transform' node from its translation, rotation, scale, and skew inputs.
-fn read_transform_node_value(inputs: &[graph_craft::document::NodeInput]) -> DAffine2 {
-	let translation = inputs
-		.get(1)
-		.and_then(|input| input.as_value())
-		.and_then(|value| if let TaggedValue::DVec2(v) = value { Some(*v) } else { None })
-		.unwrap_or(DVec2::ZERO);
-	let rotation_degrees = inputs
-		.get(2)
-		.and_then(|input| input.as_value())
-		.and_then(|value| if let TaggedValue::F64(v) = value { Some(*v) } else { None })
-		.unwrap_or(0.);
-	let scale = inputs
-		.get(3)
-		.and_then(|input| input.as_value())
-		.and_then(|value| if let TaggedValue::DVec2(v) = value { Some(*v) } else { None })
-		.unwrap_or(DVec2::ONE);
-	let skew = inputs
-		.get(4)
-		.and_then(|input| input.as_value())
-		.and_then(|value| if let TaggedValue::DVec2(v) = value { Some(*v) } else { None })
-		.unwrap_or(DVec2::ZERO);
-
-	let trs = DAffine2::from_scale_angle_translation(scale, rotation_degrees.to_radians(), translation);
-	let skew_matrix = DAffine2::from_cols_array(&[1., skew.y.to_radians().tan(), skew.x.to_radians().tan(), 1., 0., 0.]);
-	trs * skew_matrix
 }
 
 /// Whether two adjacent stops are too closely packed in viewport space for a midpoint diamond to be shown or interacted with.

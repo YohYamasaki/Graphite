@@ -454,22 +454,31 @@ impl<'a> ModifyInputsContext<'a> {
 		let Some(fill_node_id) = self.existing_proto_node_id(graphene_std::vector_nodes::fill::IDENTIFIER, true) else {
 			return;
 		};
+		let input_connector = InputConnector::node(fill_node_id, fill_index);
+
 		match &fill {
 			Fill::None => {
-				let input_connector = InputConnector::node(fill_node_id, backup_color_index);
-				self.set_input_with_refresh(input_connector, NodeInput::value(TaggedValue::Color(None), false), true);
+				let backup_input_connector = InputConnector::node(fill_node_id, backup_color_index);
+				self.set_input_with_refresh(backup_input_connector, NodeInput::value(TaggedValue::Color(None), false), true);
+
+				self.set_input_with_refresh(input_connector, NodeInput::value(TaggedValue::Color(None), false), false);
 			}
 			Fill::Solid(color) => {
-				let input_connector = InputConnector::node(fill_node_id, backup_color_index);
-				self.set_input_with_refresh(input_connector, NodeInput::value(TaggedValue::Color(Some(*color)), false), true);
+				let backup_input_connector = InputConnector::node(fill_node_id, backup_color_index);
+				self.set_input_with_refresh(backup_input_connector, NodeInput::value(TaggedValue::Color(Some(*color)), false), true);
+
+				self.set_input_with_refresh(input_connector, NodeInput::value(TaggedValue::Color(Some(*color)), false), false);
 			}
 			Fill::Gradient(gradient) => {
-				let input_connector = InputConnector::node(fill_node_id, backup_gradient_index);
-				self.set_input_with_refresh(input_connector, NodeInput::value(TaggedValue::FillGradient(gradient.clone()), false), true);
+				let backup_input_connector = InputConnector::node(fill_node_id, backup_gradient_index);
+				self.set_input_with_refresh(backup_input_connector, NodeInput::value(TaggedValue::FillGradient(gradient.clone()), false), true);
+
+				self.gradient_stops_set(gradient.stops.clone());
+				self.gradient_line_set(gradient.start, gradient.end);
+				self.gradient_type_set(gradient.gradient_type);
+				self.gradient_spread_method_set(gradient.spread_method);
 			}
 		}
-		let input_connector = InputConnector::node(fill_node_id, fill_index);
-		self.set_input_with_refresh(input_connector, NodeInput::value(TaggedValue::Fill(fill), false), false);
 	}
 
 	pub fn blend_mode_set(&mut self, blend_mode: BlendMode) {
@@ -529,8 +538,19 @@ impl<'a> ModifyInputsContext<'a> {
 	/// Write the gradient stops to the 'Gradient Value' node feeding the layer.
 	pub fn gradient_stops_set(&mut self, stops: GradientStops) {
 		let Some(output_layer) = self.get_output_layer() else { return };
-		let Some(gradient_value_id) = get_upstream_gradient_value_node_id(output_layer, self.network_interface) else {
-			return;
+		let gradient_value_id = match get_upstream_gradient_value_node_id(output_layer, self.network_interface) {
+			Some(id) => id,
+			None => {
+				let target = gradient_chain_target_input(output_layer, self.network_interface);
+				let Some(node_definition) = resolve_proto_node_type(graphene_std::math_nodes::gradient_value::IDENTIFIER) else {
+					return;
+				};
+				let node_id = NodeId::new();
+				self.network_interface.insert_node(node_id, node_definition.default_node_template(), &[]);
+				self.network_interface.set_input(&target, NodeInput::node(node_id, 0), &[]);
+
+				node_id
+			}
 		};
 
 		let input_connector = InputConnector::node(gradient_value_id, graphene_std::math_nodes::gradient_value::GradientInput::INDEX);

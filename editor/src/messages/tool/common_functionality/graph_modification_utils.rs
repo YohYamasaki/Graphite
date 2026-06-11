@@ -3,7 +3,7 @@ use crate::messages::portfolio::document::node_graph::document_node_definitions:
 use crate::messages::portfolio::document::utility_types::document_metadata::LayerNodeIdentifier;
 use crate::messages::portfolio::document::utility_types::network_interface::{FlowType, InputConnector, NodeNetworkInterface, NodeTemplate};
 use crate::messages::prelude::*;
-use glam::DVec2;
+use glam::{DAffine2, DVec2};
 use graph_craft::document::value::TaggedValue;
 use graph_craft::document::{NodeId, NodeInput};
 use graph_craft::{ProtoNodeIdentifier, concrete};
@@ -16,7 +16,7 @@ use graphene_std::subpath::Subpath;
 use graphene_std::text::{Font, TypesettingConfig};
 use graphene_std::vector::misc::ManipulatorPointId;
 use graphene_std::vector::style::{Fill, FillChoice, Gradient, PaintOrder, StrokeAlign, StrokeCap, StrokeJoin};
-use graphene_std::vector::{GradientStops, PointId, SegmentId, VectorModificationType};
+use graphene_std::vector::{GradientSpreadMethod, GradientStops, GradientType, PointId, SegmentId, VectorModificationType};
 use std::collections::VecDeque;
 
 /// Returns the ID of the first Spline node in the horizontal flow which is not followed by a `Path` node, or `None` if none exists.
@@ -318,6 +318,90 @@ pub fn get_gradient_stops(layer: LayerNodeIdentifier, network_interface: &NodeNe
 		return None;
 	};
 	Some(stops.clone())
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct GradientChainState {
+	pub transform: DAffine2,
+	pub gradient_type: GradientType,
+	pub spread_method: GradientSpreadMethod,
+}
+
+/// Resolve the gradient transform, type, and spread method by walking the chain feeding the layer. Transform composes all
+/// 'Transform' nodes. Type and spread method come from the closest-to-layer node of each kind, or the type default.
+pub fn read_gradient_chain_state(layer: LayerNodeIdentifier, network_interface: &NodeNetworkInterface) -> GradientChainState {
+	let target_input = gradient_chain_target_input(layer, network_interface);
+	let walk_from = network_interface.upstream_output_connector(&target_input, &[]).and_then(|out| out.node_id()).unwrap_or(layer.to_node());
+
+	let transform_reference = DefinitionIdentifier::ProtoNode(graphene_std::transform_nodes::transform::IDENTIFIER);
+	let gradient_type_reference = DefinitionIdentifier::ProtoNode(graphene_std::math_nodes::gradient_type::IDENTIFIER);
+	let spread_method_reference = DefinitionIdentifier::ProtoNode(graphene_std::math_nodes::spread_method::IDENTIFIER);
+
+	let mut transforms_downstream_to_upstream: Vec<DAffine2> = Vec::new();
+	let mut gradient_type: Option<GradientType> = None;
+	let mut spread_method: Option<GradientSpreadMethod> = None;
+
+	for node_id in network_interface
+		.upstream_flow_back_from_nodes(vec![walk_from], &[], FlowType::HorizontalFlow)
+		.skip_while(|node_id| network_interface.is_layer(node_id, &[]))
+		.take_while(|node_id| !network_interface.is_layer(node_id, &[]))
+	{
+		let Some(reference) = network_interface.reference(&node_id, &[]) else { continue };
+		let Some(document_node) = network_interface.document_network().nodes.get(&node_id) else {
+			continue;
+		};
+
+		if reference == transform_reference {
+			transforms_downstream_to_upstream.push(read_transform_node_value(&document_node.inputs));
+		} else if reference == gradient_type_reference
+			&& gradient_type.is_none()
+			&& let Some(TaggedValue::GradientType(value)) = document_node.inputs.get(1).and_then(|input| input.as_value())
+		{
+			gradient_type = Some(*value);
+		} else if reference == spread_method_reference
+			&& spread_method.is_none()
+			&& let Some(TaggedValue::GradientSpreadMethod(value)) = document_node.inputs.get(1).and_then(|input| input.as_value())
+		{
+			spread_method = Some(*value);
+		}
+	}
+
+	// Iteration order [T_n, ..., T_1] is the matrix-product order, so the fold yields T_n * ... * T_1
+	let composed_transform = transforms_downstream_to_upstream.into_iter().fold(DAffine2::IDENTITY, |acc, matrix| acc * matrix);
+
+	GradientChainState {
+		transform: composed_transform,
+		gradient_type: gradient_type.unwrap_or_default(),
+		spread_method: spread_method.unwrap_or_default(),
+	}
+}
+
+/// Reconstruct the `DAffine2` produced by a 'Transform' node from its translation, rotation, scale, and skew inputs.
+fn read_transform_node_value(inputs: &[graph_craft::document::NodeInput]) -> DAffine2 {
+	let translation = inputs
+		.get(1)
+		.and_then(|input| input.as_value())
+		.and_then(|value| if let TaggedValue::DVec2(v) = value { Some(*v) } else { None })
+		.unwrap_or(DVec2::ZERO);
+	let rotation_degrees = inputs
+		.get(2)
+		.and_then(|input| input.as_value())
+		.and_then(|value| if let TaggedValue::F64(v) = value { Some(*v) } else { None })
+		.unwrap_or(0.);
+	let scale = inputs
+		.get(3)
+		.and_then(|input| input.as_value())
+		.and_then(|value| if let TaggedValue::DVec2(v) = value { Some(*v) } else { None })
+		.unwrap_or(DVec2::ONE);
+	let skew = inputs
+		.get(4)
+		.and_then(|input| input.as_value())
+		.and_then(|value| if let TaggedValue::DVec2(v) = value { Some(*v) } else { None })
+		.unwrap_or(DVec2::ZERO);
+
+	let trs = DAffine2::from_scale_angle_translation(scale, rotation_degrees.to_radians(), translation);
+	let skew_matrix = DAffine2::from_cols_array(&[1., skew.y.to_radians().tan(), skew.x.to_radians().tan(), 1., 0., 0.]);
+	trs * skew_matrix
 }
 
 /// Compute the transform from a gradient's local space to viewport space for the given layer. For a `List<GradientStops>`
