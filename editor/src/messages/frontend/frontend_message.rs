@@ -236,6 +236,10 @@ pub enum FrontendMessage {
 		#[serde(rename = "layerStructure")]
 		layer_structure: Vec<LayerStructureEntry>,
 	},
+	UpdateSlideshowArtboardCount {
+		#[serde(rename = "artboardCount")]
+		artboard_count: f64,
+	},
 	UpdateDocumentRulers {
 		origin: (f64, f64),
 		spacing: f64,
@@ -347,6 +351,7 @@ pub enum FrontendMessage {
 	#[cfg(not(target_family = "wasm"))]
 	WindowMaximize,
 	WindowFullscreen,
+	WindowSlideshow,
 	#[cfg(not(target_family = "wasm"))]
 	WindowDrag,
 	#[cfg(not(target_family = "wasm"))]

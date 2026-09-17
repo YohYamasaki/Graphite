@@ -22,6 +22,14 @@ impl MessageHandler<DeferMessage, DeferMessageContext<'_>> for DeferMessageHandl
 				responses.add(NodeGraphMessage::RunDocumentGraph);
 			}
 			DeferMessage::AfterNavigationReady { messages } => {
+				// FIXME: find better way to do not send duplicated fit messages
+				if messages
+					.iter()
+					.any(|message| matches!(message, Message::Portfolio(PortfolioMessage::Document(DocumentMessage::ZoomCanvasToFitArtboard { .. }))))
+				{
+					self.after_viewport_resize
+						.retain(|message| !matches!(message, Message::Portfolio(PortfolioMessage::Document(DocumentMessage::ZoomCanvasToFitArtboard { .. }))));
+				}
 				self.after_viewport_resize.extend_from_slice(&messages);
 			}
 			DeferMessage::SetGraphSubmissionIndex { execution_id } => {

@@ -11,6 +11,7 @@
 	import WidgetLayout from "/src/components/widgets/WidgetLayout.svelte";
 	import type { AppWindowStore } from "/src/stores/app-window";
 	import type { DocumentStore } from "/src/stores/document";
+	import type { SlideshowStore } from "/src/stores/slideshow";
 	import type { SubscriptionsRouter } from "/src/subscriptions-router";
 	import type { MessageBody } from "/src/subscriptions-router";
 	import { fillChoiceColor, createSRgba8 } from "/src/utility-functions/colors";
@@ -30,6 +31,7 @@
 	const editor = getContext<EditorWrapper>("editor");
 	const appWindow = getContext<AppWindowStore>("appWindow");
 	const document = getContext<DocumentStore>("document");
+	const slideshow = getContext<SlideshowStore>("slideshow");
 
 	// Interactive text editing
 	let textInput: undefined | HTMLDivElement = undefined;
@@ -136,6 +138,10 @@
 	})($document.toolShelfLayout[0]);
 
 	function dropFile(e: DragEvent) {
+		if ($slideshow.windowSlideshow) {
+			e.preventDefault();
+			return;
+		}
 		if (!e.dataTransfer) return;
 
 		let mouse: [number, number] | undefined = undefined;
@@ -159,6 +165,7 @@
 	}
 
 	function canvasPointerDown(e: PointerEvent) {
+		if ($slideshow.windowSlideshow) return;
 		const onEditbox = e.target instanceof HTMLDivElement && e.target.contentEditable;
 
 		if (!onEditbox) viewport?.setPointerCapture(e.pointerId);
@@ -553,7 +560,9 @@
 
 		// Setup ResizeObserver for pixel-perfect viewport tracking with physical dimensions
 		// This must happen in onMount to ensure the viewport container element exists
-		cleanupViewportResizeObserver = setupViewportResizeObserver(editor);
+		cleanupViewportResizeObserver = setupViewportResizeObserver(editor, () => {
+			if ($slideshow.windowSlideshow) editor.fitArtboardToViewportAfterNavigationReady($slideshow.artboardIndex);
+		});
 
 		// Also observe the inner viewport for canvas sizing and ruler updates
 		viewportResizeObserver = new ResizeObserver(() => {
@@ -583,7 +592,7 @@
 	});
 </script>
 
-<LayoutCol class="document" on:dragover={(e) => e.preventDefault()} on:drop={dropFile}>
+<LayoutCol class="document" classes={{ slideshow: $slideshow.windowSlideshow }} on:dragover={(e) => e.preventDefault()} on:drop={dropFile}>
 	<LayoutRow class="control-bar" classes={{ "for-graph": $document.graphViewOverlayOpen }} scrollableX={true}>
 		{#if !$document.graphViewOverlayOpen}
 			<WidgetLayout layout={$document.toolOptionsLayout} layoutTarget="ToolOptions" />
@@ -1014,6 +1023,19 @@
 						height: 100%;
 					}
 				}
+			}
+		}
+		&.slideshow {
+			.viewport-container-inner-2 {
+				pointer-events: none;
+			}
+
+			.control-bar,
+			.tool-shelf,
+			.ruler-or-scrollbar,
+			.graph-view,
+			.overlays {
+				display: none;
 			}
 		}
 	}

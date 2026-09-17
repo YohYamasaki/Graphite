@@ -11,27 +11,31 @@
 	import type { AppWindowStore } from "/src/stores/app-window";
 	import type { DialogStore } from "/src/stores/dialog";
 	import type { PortfolioStore } from "/src/stores/portfolio";
+	import type { SlideshowStore } from "/src/stores/slideshow";
 	import type { TooltipStore } from "/src/stores/tooltip";
 
 	const dialog = getContext<DialogStore>("dialog");
 	const tooltip = getContext<TooltipStore>("tooltip");
 	const appWindow = getContext<AppWindowStore>("appWindow");
+	const slideshow = getContext<SlideshowStore>("slideshow");
 	const portfolio = getContext<PortfolioStore>("portfolio");
 </script>
 
 <LayoutCol class="main-window" classes={{ "viewport-hole-punch": $appWindow.viewportHolePunch }}>
 	{#if !($appWindow.platform == "Mac" && $appWindow.fullscreen)}
-		<TitleBar />
+		<TitleBar classes={{ hidden: $slideshow.windowSlideshow }} />
 	{/if}
 	<LayoutRow class="workspace" data-workspace>
 		<PanelSubdivision subdivision={$portfolio.panelLayout.root} depth={0} />
 	</LayoutRow>
-	<StatusBar />
-	{#if $dialog.visible}
-		<Dialog />
-	{/if}
-	{#if $tooltip.visible}
-		<Tooltip />
+	{#if !$slideshow.windowSlideshow}
+		<StatusBar />
+		{#if $dialog.visible}
+			<Dialog />
+		{/if}
+		{#if $tooltip.visible}
+			<Tooltip />
+		{/if}
 	{/if}
 	{#if import.meta.env.MODE === "native" && new Date() > new Date("2026-12-31")}
 		<LayoutCol class="release-candidate-expiry">

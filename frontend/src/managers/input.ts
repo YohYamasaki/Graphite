@@ -2,6 +2,7 @@ import type { DialogStore } from "/src/stores/dialog";
 import type { DocumentStore } from "/src/stores/document";
 import { fullscreenModeChanged } from "/src/stores/fullscreen";
 import type { PortfolioStore } from "/src/stores/portfolio";
+import { isSlideshowActive, slideshowModeChanged, stepSlideshowArtboard } from "/src/stores/slideshow";
 import type { SubscriptionsRouter } from "/src/subscriptions-router";
 import { triggerClipboardRead } from "/src/utility-functions/clipboard";
 import {
@@ -32,25 +33,68 @@ type EventListenerTarget = {
 };
 type Listener = { target: EventListenerTarget; eventName: EventName; action(event: Event): void; options?: AddEventListenerOptions };
 
+function ignoreMouseInputWhilePresenting(event: Event) {
+	if (!isSlideshowActive()) return false;
+	if (event.cancelable) event.preventDefault();
+	return true;
+}
+
+function handleSlideshowKeyboardInput(event: KeyboardEvent) {
+	if (!isSlideshowActive() || (event.code !== "ArrowLeft" && event.code !== "ArrowRight")) return;
+
+	event.preventDefault();
+	event.stopImmediatePropagation();
+	if (event.type !== "keydown" || event.repeat || !editorWrapper) return;
+
+	const direction = event.code === "ArrowLeft" ? -1 : 1;
+	editorWrapper.fitArtboardToViewport(stepSlideshowArtboard(direction));
+}
+
 export const PRESS_REPEAT_DELAY_MS = 400;
 export const PRESS_REPEAT_INTERVAL_MS = 72;
 export const PRESS_REPEAT_INTERVAL_RAPID_MS = 10;
 const listeners: Listener[] = [
 	{ target: window, eventName: "beforeunload", action: (e: BeforeUnloadEvent) => editorWrapper && portfolioStore && onBeforeUnload(e, editorWrapper, portfolioStore) },
+	{ target: window, eventName: "keyup", action: (e: KeyboardEvent) => handleSlideshowKeyboardInput(e), options: { capture: true } },
+	{ target: window, eventName: "keydown", action: (e: KeyboardEvent) => handleSlideshowKeyboardInput(e), options: { capture: true } },
 	{ target: window, eventName: "keyup", action: (e: KeyboardEvent) => editorWrapper && dialogStore && onKeyUp(e, editorWrapper, dialogStore) },
 	{ target: window, eventName: "keydown", action: (e: KeyboardEvent) => editorWrapper && dialogStore && onKeyDown(e, editorWrapper, dialogStore) },
-	{ target: window, eventName: "pointermove", action: (e: PointerEvent) => editorWrapper && documentStore && onPointerMove(e, editorWrapper, documentStore) },
-	{ target: window, eventName: "pointerdown", action: (e: PointerEvent) => editorWrapper && dialogStore && onPointerDown(e, editorWrapper, dialogStore) },
-	{ target: window, eventName: "pointerup", action: (e: PointerEvent) => editorWrapper && onPointerUp(e, editorWrapper) },
-	{ target: window, eventName: "mousedown", action: (e: MouseEvent) => onMouseDown(e) },
-	{ target: window, eventName: "mouseup", action: (e: MouseEvent) => editorWrapper && onPotentialDoubleClick(e, editorWrapper) },
-	{ target: window, eventName: "wheel", action: (e: WheelEvent) => editorWrapper && onWheelScroll(e, editorWrapper), options: { passive: false } },
+	{
+		target: window,
+		eventName: "pointermove",
+		action: (e: PointerEvent) => !ignoreMouseInputWhilePresenting(e) && editorWrapper && documentStore && onPointerMove(e, editorWrapper, documentStore),
+	},
+	{
+		target: window,
+		eventName: "pointerdown",
+		action: (e: PointerEvent) => !ignoreMouseInputWhilePresenting(e) && editorWrapper && dialogStore && onPointerDown(e, editorWrapper, dialogStore),
+	},
+	{ target: window, eventName: "pointerup", action: (e: PointerEvent) => !ignoreMouseInputWhilePresenting(e) && editorWrapper && onPointerUp(e, editorWrapper) },
+	{ target: window, eventName: "mousedown", action: (e: MouseEvent) => !ignoreMouseInputWhilePresenting(e) && onMouseDown(e) },
+	{
+		target: window,
+		eventName: "mouseup",
+		action: (e: MouseEvent) => !ignoreMouseInputWhilePresenting(e) && editorWrapper && onPotentialDoubleClick(e, editorWrapper),
+	},
+	{
+		target: window,
+		eventName: "wheel",
+		action: (e: WheelEvent) => !ignoreMouseInputWhilePresenting(e) && editorWrapper && onWheelScroll(e, editorWrapper),
+		options: { passive: false },
+	},
 	{ target: window, eventName: "modifyinputfield", action: (e: CustomEvent) => editorWrapper && onModifyInputField(e, editorWrapper) },
 	{ target: window, eventName: "focusout", action: () => onFocusOut() },
 	{ target: window, eventName: "dragover", action: (e: DragEvent) => onDragOver(e) },
 	{ target: window, eventName: "drop", action: (e: DragEvent) => onDrop(e) },
-	{ target: window.document, eventName: "contextmenu", action: (e: MouseEvent) => onContextMenu(e) },
-	{ target: window.document, eventName: "fullscreenchange", action: () => fullscreenModeChanged() },
+	{ target: window.document, eventName: "contextmenu", action: (e: MouseEvent) => !ignoreMouseInputWhilePresenting(e) && onContextMenu(e) },
+	{
+		target: window.document,
+		eventName: "fullscreenchange",
+		action: () => {
+			fullscreenModeChanged();
+			slideshowModeChanged();
+		},
+	},
 	{ target: window.document.body, eventName: "paste", action: (e: ClipboardEvent) => editorWrapper && onPaste(e, editorWrapper) },
 	{ target: window.document, eventName: "pointerlockchange", action: onPointerLockChange },
 	{ target: window.document, eventName: "pointerlockerror", action: onPointerLockChange },

@@ -38,6 +38,9 @@ impl MessageHandler<AppWindowMessage, ()> for AppWindowMessageHandler {
 			AppWindowMessage::Fullscreen => {
 				responses.add(FrontendMessage::WindowFullscreen);
 			}
+			AppWindowMessage::Slideshow => {
+				responses.add(FrontendMessage::WindowSlideshow);
+			}
 			AppWindowMessage::Drag => {
 				#[cfg(not(target_family = "wasm"))]
 				responses.add(FrontendMessage::WindowDrag);

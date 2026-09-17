@@ -636,26 +636,8 @@ impl NodeNetworkInterface {
 	}
 
 	/// All artboard layers that participate in the scene, excluding disconnected Artboard nodes.
-	pub fn all_artboards(&self) -> HashSet<LayerNodeIdentifier> {
-		// O(n * (nodes + wires)) since connected_to_output performs a graph walk per artboard candidate
-		self.document_network_metadata()
-			.persistent_metadata
-			.node_metadata
-			.iter()
-			.filter_map(|(node_id, node_metadata)| {
-				if node_metadata.persistent_metadata.network_metadata.as_ref().is_some_and(|network_metadata| {
-					network_metadata
-						.persistent_metadata
-						.reference
-						.as_ref()
-						.is_some_and(|reference| reference == "Artboard" && self.connected_to_output(node_id, &[]) && self.is_layer(node_id, &[]))
-				}) {
-					Some(LayerNodeIdentifier::new(*node_id, self))
-				} else {
-					None
-				}
-			})
-			.collect()
+	pub fn all_artboards(&self) -> Vec<LayerNodeIdentifier> {
+		self.document_metadata().all_layers().filter(|layer| self.is_artboard(&layer.to_node(), &[])).collect()
 	}
 
 	/// Folders sorted from most nested to least nested
@@ -679,6 +661,12 @@ impl NodeNetworkInterface {
 	/// Calculates the document bounds in document space
 	pub fn document_bounds_document_space(&self, include_artboards: bool) -> Option<[DVec2; 2]> {
 		self.combined_document_bounds(include_artboards, |metadata, layer| metadata.bounding_box_document(layer))
+	}
+
+	pub fn artboard_bounds(&self, index: usize) -> Option<[DVec2; 2]> {
+		let artboards = self.all_artboards();
+		let artboard = artboards.get(index)?;
+		self.document_metadata.bounding_box_document(*artboard)
 	}
 
 	fn combined_document_bounds(&self, include_artboards: bool, layer_bounds: impl Fn(&DocumentMetadata, LayerNodeIdentifier) -> Option<[DVec2; 2]>) -> Option<[DVec2; 2]> {

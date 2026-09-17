@@ -6,6 +6,8 @@
 	import type { AppWindowStore } from "/src/stores/app-window";
 	import { enterFullscreen, exitFullscreen } from "/src/stores/fullscreen";
 	import type { FullscreenStore } from "/src/stores/fullscreen";
+	import { enterSlideshow, exitSlideshow } from "/src/stores/slideshow";
+	import type { SlideshowStore } from "/src/stores/slideshow";
 	import type { TooltipStore } from "/src/stores/tooltip";
 	import type { SubscriptionsRouter } from "/src/subscriptions-router";
 	import { patchLayout } from "/src/utility-functions/widgets";
@@ -17,12 +19,17 @@
 	const subscriptions = getContext<SubscriptionsRouter>("subscriptions");
 	const appWindow = getContext<AppWindowStore>("appWindow");
 	const fullscreen = getContext<FullscreenStore>("fullscreen");
+	const slideshow = getContext<SlideshowStore>("slideshow");
 	const tooltip = getContext<TooltipStore>("tooltip");
+
+	export let classes: Record<string, boolean> = {};
 
 	let menuBarLayout: Layout = [];
 
 	$: showFullscreenButton = $appWindow.platform === "Web" || $fullscreen.windowFullscreen || (import.meta.env.MODE === "native" && $appWindow.fullscreen);
+	$: showSlideshowButton = $appWindow.platform === "Web" || $slideshow.windowSlideshow;
 	$: isFullscreen = import.meta.env.MODE === "native" ? $appWindow.fullscreen : $fullscreen.windowFullscreen;
+	$: isSlideshow = $slideshow.windowSlideshow;
 	// On Mac, the menu bar height needs to be scaled by the inverse of the UI scale to fit its native window buttons
 	$: height = $appWindow.platform === "Mac" ? 28 * (1 / $appWindow.uiScale) : 28;
 
@@ -38,7 +45,7 @@
 	});
 </script>
 
-<LayoutRow class="title-bar" styles={{ "--title-bar-height": height + "px" }}>
+<LayoutRow class="title-bar" {classes} styles={{ "--title-bar-height": height + "px" }}>
 	<!-- Menu bar -->
 	<LayoutRow class="menu-bar">
 		{#if $appWindow.platform !== "Mac"}
@@ -84,6 +91,10 @@
 		flex: 0 0 auto;
 		height: var(--height);
 		--height: var(--title-bar-height);
+
+		&.hidden {
+			display: none;
+		}
 
 		// Frameless PWA drag regions and left/right offsets for window controls, see:
 		// https://web.dev/articles/window-controls-overlay

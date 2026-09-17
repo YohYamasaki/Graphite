@@ -11,6 +11,7 @@ pub enum AppWindowMessage {
 	Minimize,
 	Maximize,
 	Fullscreen,
+	Slideshow,
 	Drag,
 	Focus,
 	Hide,

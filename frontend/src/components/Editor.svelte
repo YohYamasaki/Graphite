@@ -14,6 +14,7 @@
 	import { createFullscreenStore, destroyFullscreenStore } from "/src/stores/fullscreen";
 	import { createNodeGraphStore, destroyNodeGraphStore } from "/src/stores/node-graph";
 	import { createPortfolioStore, destroyPortfolioStore } from "/src/stores/portfolio";
+	import { createSlideshowStore, destroySlideshowStore } from "/src/stores/slideshow";
 	import { createTooltipStore, destroyTooltipStore } from "/src/stores/tooltip";
 	import type { SubscriptionsRouter } from "/src/subscriptions-router";
 	import type { EditorWrapper } from "/wrapper/pkg/graphite_wasm_wrapper";
@@ -29,6 +30,7 @@
 		tooltip: createTooltipStore(subscriptions),
 		document: createDocumentStore(subscriptions),
 		fullscreen: createFullscreenStore(subscriptions),
+		slideshow: createSlideshowStore(subscriptions, editor),
 		nodeGraph: createNodeGraphStore(subscriptions),
 		portfolio: createPortfolioStore(subscriptions, editor),
 		appWindow: createAppWindowStore(subscriptions),
@@ -58,6 +60,7 @@
 		destroyTooltipStore();
 		destroyDocumentStore();
 		destroyFullscreenStore();
+		destroySlideshowStore();
 		destroyNodeGraphStore();
 		destroyPortfolioStore();
 		destroyAppWindowStore();

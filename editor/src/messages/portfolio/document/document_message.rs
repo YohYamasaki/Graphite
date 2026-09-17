@@ -55,6 +55,7 @@ pub enum DocumentMessage {
 	DocumentHistoryBackward,
 	DocumentHistoryForward,
 	DocumentStructureChanged,
+	SendSlideshowArtboardCount,
 	DrawArtboardOverlays {
 		context: OverlayContext,
 	},
@@ -265,4 +266,7 @@ pub enum DocumentMessage {
 	ZoomCanvasTo100Percent,
 	ZoomCanvasTo200Percent,
 	ZoomCanvasToFitAll,
+	ZoomCanvasToFitArtboard {
+		artboard_index: usize,
+	},
 }

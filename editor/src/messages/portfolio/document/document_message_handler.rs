@@ -415,9 +415,19 @@ impl MessageHandler<DocumentMessage, DocumentMessageContext<'_>> for DocumentMes
 			}
 			DocumentMessage::DocumentHistoryBackward => self.undo_with_history(document_id, viewport, preferences.validate_storage_round_trip, responses),
 			DocumentMessage::DocumentHistoryForward => self.redo_with_history(document_id, viewport, preferences.validate_storage_round_trip, responses),
+			DocumentMessage::SendSlideshowArtboardCount => {
+				self.network_interface.load_structure();
+				responses.add(FrontendMessage::UpdateSlideshowArtboardCount {
+					artboard_count: self.network_interface.all_artboards().len() as f64,
+				});
+			}
 			DocumentMessage::DocumentStructureChanged => {
+				self.network_interface.load_structure();
+				responses.add(FrontendMessage::UpdateSlideshowArtboardCount {
+					artboard_count: self.network_interface.all_artboards().len() as f64,
+				});
+
 				if layers_panel_open {
-					self.network_interface.load_structure();
 					let layer_structure = self.build_layer_structure();
 
 					self.update_layers_panel_control_bar_widgets(layers_panel_open, responses);
@@ -1744,6 +1754,30 @@ impl MessageHandler<DocumentMessage, DocumentMessageContext<'_>> for DocumentMes
 				} else {
 					warn!("Cannot zoom due to no bounds")
 				}
+			}
+			DocumentMessage::ZoomCanvasToFitArtboard { artboard_index } => {
+				responses.add(FrontendMessage::UpdateSlideshowArtboardCount {
+					artboard_count: self.network_interface.all_artboards().len() as f64,
+				});
+
+				let Some([bounds_min, bounds_max]) = self.network_interface.artboard_bounds(artboard_index) else {
+					warn!("Cannot zoom due to no artboard bounds");
+					return;
+				};
+
+				let artboard_size = bounds_max - bounds_min;
+				let viewport_size = viewport.size().into_dvec2();
+				let available_viewport_size = viewport_size - DVec2::splat(2.);
+
+				self.document_ptz.flip = false;
+				self.document_ptz.set_tilt(0.);
+				self.document_ptz.pan = -bounds_min.midpoint(bounds_max);
+				self.document_ptz.set_zoom((available_viewport_size / artboard_size).min_element());
+
+				responses.add(EventMessage::CanvasTransformed);
+				responses.add(MenuBarMessage::SendLayout);
+				responses.add(PortfolioMessage::UpdateDocumentWidgets);
+				responses.add(DocumentMessage::PTZUpdate);
 			}
 			DocumentMessage::Noop => (),
 		}

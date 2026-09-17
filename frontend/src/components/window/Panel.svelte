@@ -33,6 +33,7 @@
 	export let tabActiveIndex: number;
 	export let panelTypes: PanelType[];
 	export let panelId: string;
+	export let hideTabBar = false;
 	export let clickAction: ((index: number) => void) | undefined = undefined;
 	export let closeAction: ((index: number) => void) | undefined = undefined;
 	export let reorderAction: ((oldIndex: number, newIndex: number) => void) | undefined = undefined;
@@ -396,7 +397,7 @@
 	data-panel-body={panelId}
 	data-panel-dockable={crossPanelDropAction ? "" : undefined}
 >
-	<LayoutRow class="tab-bar" classes={{ "min-widths": tabMinWidths }}>
+	<LayoutRow class="tab-bar" classes={{ "min-widths": tabMinWidths, hide: hideTabBar }}>
 		<LayoutRow
 			class="tab-group"
 			scrollableX={true}
@@ -639,6 +640,10 @@
 				z-index: 1;
 				background: var(--color-e-nearwhite);
 				pointer-events: none;
+			}
+
+			&.hide {
+				display: none;
 			}
 		}
 

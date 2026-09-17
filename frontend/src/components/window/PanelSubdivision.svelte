@@ -4,6 +4,7 @@
 	import LayoutRow from "/src/components/layout/LayoutRow.svelte";
 	import Panel from "/src/components/window/Panel.svelte";
 	import type { PortfolioStore } from "/src/stores/portfolio";
+	import type { SlideshowStore } from "/src/stores/slideshow";
 	import type { DockingSplitDirection, DocumentInfo, EditorWrapper, PanelGroupState, PanelLayoutSubdivision, PanelType } from "/wrapper/pkg/graphite_wasm_wrapper";
 
 	const MIN_PANEL_SIZE = 100;
@@ -14,6 +15,7 @@
 
 	const editor = getContext<EditorWrapper>("editor");
 	const portfolio = getContext<PortfolioStore>("portfolio");
+	const slideshow = getContext<SlideshowStore>("slideshow");
 
 	export let subdivision: PanelLayoutSubdivision | undefined;
 	export let depth: number;
@@ -204,6 +206,7 @@
 			tabCloseButtons={true}
 			tabMinWidths={true}
 			tabLabels={documentTabLabels}
+			hideTabBar={$slideshow.windowSlideshow}
 			emptySpaceAction={() => editor.newDocumentDialog()}
 			clickAction={(tabIndex) => editor.selectDocument($portfolio.documents[tabIndex].id)}
 			closeAction={(tabIndex) => editor.closeDocumentWithConfirmation($portfolio.documents[tabIndex].id)}
@@ -232,21 +235,23 @@
 	{/if}
 {:else if subdivision && "Split" in subdivision}
 	{#each subdivision.Split.children as child, index}
-		{#if index > 0}
-			{#if horizontal}
-				<LayoutCol class="workspace-grid-resize-gutter" data-gutter-horizontal on:pointerdown={(e) => resizePanel(e, index - 1, index)} />
-			{:else}
-				<LayoutRow class="workspace-grid-resize-gutter" data-gutter-vertical on:pointerdown={(e) => resizePanel(e, index - 1, index)} />
+		{#if !$slideshow.windowSlideshow || subtreeContainsDocument(child.subdivision)}
+			{#if index > 0}
+				{#if horizontal}
+					<LayoutCol class="workspace-grid-resize-gutter" data-gutter-horizontal on:pointerdown={(e) => resizePanel(e, index - 1, index)} />
+				{:else}
+					<LayoutRow class="workspace-grid-resize-gutter" data-gutter-vertical on:pointerdown={(e) => resizePanel(e, index - 1, index)} />
+				{/if}
 			{/if}
-		{/if}
-		{#if horizontal}
-			<LayoutCol class="workspace-grid-subdivision" styles={{ "flex-grow": resolvedSizes[index] }}>
-				<svelte:self subdivision={child.subdivision} depth={depth + 1} splitPath={[...splitPath, index]} />
-			</LayoutCol>
-		{:else}
-			<LayoutRow class="workspace-grid-subdivision" styles={{ "flex-grow": resolvedSizes[index] }}>
-				<svelte:self subdivision={child.subdivision} depth={depth + 1} splitPath={[...splitPath, index]} />
-			</LayoutRow>
+			{#if horizontal}
+				<LayoutCol class="workspace-grid-subdivision" styles={{ "flex-grow": $slideshow.windowSlideshow ? 1 : resolvedSizes[index] }}>
+					<svelte:self subdivision={child.subdivision} depth={depth + 1} splitPath={[...splitPath, index]} />
+				</LayoutCol>
+			{:else}
+				<LayoutRow class="workspace-grid-subdivision" styles={{ "flex-grow": $slideshow.windowSlideshow ? 1 : resolvedSizes[index] }}>
+					<svelte:self subdivision={child.subdivision} depth={depth + 1} splitPath={[...splitPath, index]} />
+				</LayoutRow>
+			{/if}
 		{/if}
 	{/each}
 {/if}

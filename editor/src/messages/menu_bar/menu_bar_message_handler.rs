@@ -653,6 +653,11 @@ impl LayoutHolder for MenuBarMessageHandler {
 							.icon(if self.focus_document { "CheckboxChecked" } else { "CheckboxUnchecked" })
 							.tooltip_shortcut(action_shortcut!(WorkspaceMessageDiscriminant::ToggleFocusDocument))
 							.on_commit(|_| WorkspaceMessage::ToggleFocusDocument.into()),
+						MenuListEntry::new("Slideshow")
+							.label("Slideshow")
+							.icon("FullscreenEnter")
+							.tooltip_shortcut(action_shortcut!(AppWindowMessageDiscriminant::Slideshow))
+							.on_commit(|_| AppWindowMessage::Slideshow.into()),
 					],
 					vec![
 						MenuListEntry::new("Reset Workspace")

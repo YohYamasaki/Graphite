@@ -102,6 +102,10 @@ mod editor_commands {
 		AppWindowMessage::Fullscreen.into()
 	}
 
+	fn app_window_slideshow() -> Message {
+		AppWindowMessage::Slideshow.into()
+	}
+
 	/// Closes the application window
 	fn app_window_close() -> Message {
 		AppWindowMessage::Close.into()
@@ -704,6 +708,21 @@ mod editor_commands {
 			index: ImportOrExport::Export(index),
 		}
 		.into()
+	}
+
+	fn fit_artboard_to_viewport(artboard_index: usize) -> Message {
+		DocumentMessage::ZoomCanvasToFitArtboard { artboard_index }.into()
+	}
+
+	fn fit_artboard_to_viewport_after_navigation_ready(artboard_index: usize) -> Message {
+		DeferMessage::AfterNavigationReady {
+			messages: vec![DocumentMessage::ZoomCanvasToFitArtboard { artboard_index }.into()],
+		}
+		.into()
+	}
+
+	fn request_slideshow_artboard_count() -> Message {
+		DocumentMessage::SendSlideshowArtboardCount.into()
 	}
 }
 

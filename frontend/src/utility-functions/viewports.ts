@@ -10,7 +10,7 @@ export function markFirstArtworkReceived(): void {
 	firstArtworkEverReceived = true;
 }
 
-export function setupViewportResizeObserver(editor: EditorWrapper): () => void {
+export function setupViewportResizeObserver(editor: EditorWrapper, afterViewportUpdate?: () => void): () => void {
 	const viewports = Array.from(window.document.querySelectorAll("[data-viewport-container]"));
 	if (viewports.length <= 0) return () => {};
 
@@ -51,6 +51,7 @@ export function setupViewportResizeObserver(editor: EditorWrapper): () => void {
 			}
 
 			editor.updateViewport(bounds.x, bounds.y, logicalWidth, logicalHeight, scale);
+			afterViewportUpdate?.();
 		}
 	});
 
